@@ -1,5 +1,7 @@
 # Goal Tracker - 3-Tier AWS Infrastructure
 
+![AppOverview](AWS%20Terrafrom%20Multi-AZ%20Cloud%20Architecture%20Diagram.png)
+
 Highly available 3-tier application: Node.js frontend, Go backend, PostgreSQL database.
 
 ## Quick Deployment
