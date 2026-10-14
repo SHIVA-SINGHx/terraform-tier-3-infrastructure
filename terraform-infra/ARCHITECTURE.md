@@ -1,5 +1,8 @@
 # Architecture Overview
 
+<img width="1672" height="941" alt="AWS Terrafrom Multi-AZ Cloud Architecture Diagram" src="https://github.com/user-attachments/assets/47257981-f069-418a-819b-9725f42f6e4c" />
+
+
 ## 🏗️ System Architecture Diagram
 
 ```
