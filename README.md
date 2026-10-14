@@ -68,7 +68,7 @@ terraform output application_url
 terraform output bastion_public_ip
 ```
 
-## Architecture
+## [Architecture](https://github.com/SHIVA-SINGHx/terraform-tier-3-infrastructure/blob/main/terraform-infra/ARCHITECTURE.md)
 
 **Deployed Resources:**
 - VPC with 8 subnets across 2 AZs (public, frontend, backend, database)
