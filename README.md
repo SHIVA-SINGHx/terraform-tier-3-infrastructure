@@ -1,4 +1,4 @@
-# Goal Tracker - 3-Tier AWS Infrastructure
+# 3-Tier AWS Infrastructure
 
 ![AppOverview](AWS%20Terrafrom%20Multi-AZ%20Cloud%20Architecture%20Diagram.png)
 
