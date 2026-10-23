@@ -1,23 +1,80 @@
-# 3-Tier AWS Infrastructure
+# 3-Tier AWS Infrastructure with Terraform
 
-![AppOverview](AWS%20Terrafrom%20Multi-AZ%20Cloud%20Architecture%20Diagram.png)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-Multi--AZ-FF9900?logo=amazonaws&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
+![Go](https://img.shields.io/badge/Go-Backend-00ADD8?logo=go&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-Frontend-339933?logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RDS-4169E1?logo=postgresql&logoColor=white)
 
-Highly available 3-tier application: Node.js frontend, Go backend, PostgreSQL database.
+A highly available 3-tier web application deployed on AWS using Terraform. The frontend runs on Node.js, the backend on Go, and data is stored in PostgreSQL (Amazon RDS). The entire infrastructure is created with a single `terraform apply`.
 
-## Quick Deployment
+![Architecture Diagram](AWS%20Terrafrom%20Multi-AZ%20Cloud%20Architecture%20Diagram.png)
 
-### 1. Build and Push Docker Images
+---
+
+## Highlights
+
+- **Multi-AZ architecture:** VPC with 8 subnets across 2 Availability Zones (public, frontend, backend, database)
+- **Load balanced:** public ALB for internet traffic, internal ALB for frontend-to-backend communication
+- **Auto Scaling:** frontend scales between 2–4 instances, backend between 2–6
+- **Managed database:** RDS PostgreSQL with optional Multi-AZ failover
+- **Secure by design:** private subnets, bastion host for SSH, credentials stored in AWS Secrets Manager
+- **Observable:** application logs shipped to CloudWatch
+- **Flexible cost/availability:** toggle between high-availability and cost-optimized setups using variables
+
+---
+
+## Architecture
+
+| Layer | Component |
+|-------|-----------|
+| Network | VPC, 8 subnets across 2 AZs, NAT Gateway (1 or 2) |
+| Entry | Public Application Load Balancer |
+| Frontend | Node.js containers on EC2 Auto Scaling Group (2–4) |
+| Backend | Go containers on EC2 Auto Scaling Group (2–6), behind an internal ALB |
+| Database | RDS PostgreSQL (Multi-AZ optional) |
+| Access | Bastion host for SSH into private instances |
+| Secrets | AWS Secrets Manager |
+| Logging | Amazon CloudWatch |
+
+For a deeper walkthrough, see [ARCHITECTURE.md](terraform-infra/ARCHITECTURE.md).
+
+---
+
+## Project Structure
+
+```
+.
+├── frontend/                 # Node.js frontend + Dockerfile
+├── backend/                  # Go backend + Dockerfile
+├── docker-local-deployment/  # docker-compose setup for local development
+└── terraform-infra/          # Terraform code (modules + environments)
+    └── environments/dev/
+```
+
+---
+
+## Prerequisites
+
+- AWS account with credentials configured (`aws configure`)
+- [Terraform](https://developer.hashicorp.com/terraform/install)
+- [Docker](https://docs.docker.com/get-docker/) and a Docker Hub account
+- An existing EC2 key pair in your target region
+
+---
+
+## Quick Start
+
+### 1. Build and push Docker images
 
 ```bash
-# Login to Docker Hub
 docker login
 
-# Build and push frontend
 cd frontend
 docker build -t YOUR_USERNAME/goal-tracker-frontend:latest .
 docker push YOUR_USERNAME/goal-tracker-frontend:latest
 
-# Build and push backend
 cd ../backend
 docker build -t YOUR_USERNAME/goal-tracker-backend:latest .
 docker push YOUR_USERNAME/goal-tracker-backend:latest
@@ -28,10 +85,10 @@ docker push YOUR_USERNAME/goal-tracker-backend:latest
 ```bash
 cd terraform-infra/environments/dev
 cp terraform.tfvars.example terraform.tfvars
-nano terraform.tfvars
 ```
 
-**Required Configuration:**
+Edit `terraform.tfvars`:
+
 ```hcl
 region      = "us-east-1"
 environment = "dev"
@@ -45,12 +102,14 @@ backend_docker_image  = "YOUR_USERNAME/goal-tracker-backend:latest"
 dockerhub_username    = "YOUR_USERNAME"
 dockerhub_password    = "YOUR_DOCKER_TOKEN"
 
-# High Availability (optional)
+# High availability options
 single_nat_gateway = false  # true = cost optimized, false = HA
 db_multi_az        = true   # true = HA, false = cost optimized
 ```
 
-### 3. Deploy Infrastructure
+> **Note:** `terraform.tfvars` contains credentials. Never commit it to Git.
+
+### 3. Deploy
 
 ```bash
 terraform init
@@ -58,62 +117,68 @@ terraform plan
 terraform apply -auto-approve
 ```
 
-**Deployment Time:** ~15-20 minutes
+Deployment takes around 15–20 minutes.
 
-### 4. Access Application
+### 4. Access the application
 
 ```bash
-# Get application URL
 terraform output application_url
-
-# Get bastion IP for SSH access
 terraform output bastion_public_ip
 ```
 
-## [Architecture](https://github.com/SHIVA-SINGHx/terraform-tier-3-infrastructure/blob/main/terraform-infra/ARCHITECTURE.md)
+---
 
-**Deployed Resources:**
-- VPC with 8 subnets across 2 AZs (public, frontend, backend, database)
-- Public ALB for internet traffic
-- Internal ALB for backend communication
-- Auto Scaling Groups (Frontend: 2-4, Backend: 2-6 instances)
-- RDS PostgreSQL (Multi-AZ optional)
-- NAT Gateway (1 or 2 for HA)
-- Bastion host for SSH access
-- Secrets Manager for credentials
-- CloudWatch for logging
+## Local Development
 
-## Update Application
+Run the full stack locally without AWS:
 
 ```bash
-# Rebuild and push images
-docker build -t YOUR_USERNAME/goal-tracker-frontend:latest ./frontend
-docker push YOUR_USERNAME/goal-tracker-frontend:latest
+cd docker-local-deployment
+docker-compose up -d
+```
 
-# Trigger instance refresh
+Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Updating the Application
+
+After pushing new images, trigger a rolling refresh of the Auto Scaling Group:
+
+```bash
 aws autoscaling start-instance-refresh \
   --auto-scaling-group-name dev-goal-tracker-frontend-asg \
   --region us-east-1
 ```
 
+---
+
 ## Troubleshooting
 
-**Check logs:**
+**View logs**
 ```bash
 aws logs tail /aws/ec2/dev-goal-tracker/frontend --follow --region us-east-1
 ```
 
-**SSH to instances via bastion:**
+**SSH into private instances via bastion**
 ```bash
 ssh -i your-key.pem ec2-user@BASTION_IP
 ssh ec2-user@PRIVATE_INSTANCE_IP
 ```
 
-**View container status:**
+**Check containers**
 ```bash
 docker ps -a
 docker logs goal-tracker-frontend
 ```
+
+---
+
+## Cost Note
+
+NAT Gateways, Multi-AZ RDS, and multiple EC2 instances are billed while running. For testing, set `single_nat_gateway = true` and `db_multi_az = false`, and destroy resources when done.
+
+---
 
 ## Cleanup
 
@@ -121,15 +186,15 @@ docker logs goal-tracker-frontend
 terraform destroy -auto-approve
 ```
 
-## Local Development
+---
 
-```bash
-cd docker-local-deployment
-docker-compose up -d
-```
+## Tech Stack
 
-Access at: http://localhost:3000
+Terraform · AWS (VPC, EC2, ALB, Auto Scaling, RDS, Secrets Manager, CloudWatch) · Docker · Node.js · Go · PostgreSQL
 
 ---
 
-**Stack:** Terraform | Docker | AWS | Node.js | Go | PostgreSQL
+## Author
+
+**Shiva Singh**
+[GitHub](https://github.com/SHIVA-SINGHx)
